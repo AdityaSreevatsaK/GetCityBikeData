@@ -2,7 +2,7 @@ name: Run CityBike Snapshot Hourly
 
 on:
   schedule:
-    - cron: '43 * * * *'
+    - cron: '46 * * * *'
   workflow_dispatch:
 
 permissions:
