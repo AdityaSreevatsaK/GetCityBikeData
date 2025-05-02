@@ -26,8 +26,8 @@ except requests.exceptions.RequestException as e:
 # Get the current date and time in New York timezone
 ny_tz = pytz.timezone("America/New_York")
 current_time = datetime.now(ny_tz)
-date_str = current_time.strftime("%Y-%m-%d")
-time_str = current_time.strftime("%H_%M")
+date_str = current_time.strftime("%d-%m-%Y")
+time_str = current_time.strftime("%H")
 
 # Create a folder for the current date if it doesn't exist
 folder_name = date_str
@@ -35,7 +35,7 @@ if not os.path.exists(folder_name):
     os.makedirs(folder_name)
 
 # Save the response to a text file
-file_name = f"{folder_name}/{date_str}_{time_str}.txt"
+file_name = f"{folder_name}/{date_str}_Hour-{time_str}.txt"
 with open(file_name, "w") as file:
     file.write(str(data))
 
