@@ -1,2 +1,0 @@
-- name: build
-  run: echo "This is a dummy status check"
