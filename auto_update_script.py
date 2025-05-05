@@ -141,9 +141,9 @@ def create_branch_and_pr(github_token, repo_name, file_path, folder_path):
 
 def main():
     # Configuration
-    github_token = os.environ.get("GITHUB_TOKEN")
+    github_token = os.environ.get("PAT_TOKEN")
     if not github_token:
-        print("Error: GITHUB_TOKEN environment variable is not set.")
+        print("Error: PAT_TOKEN environment variable is not set.")
         sys.exit(1)
     
     repo_name = "AdityaSreevatsaK/GetCityBikeData"
