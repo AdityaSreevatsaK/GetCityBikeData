@@ -4,12 +4,19 @@ import sys
 import requests
 import json
 from datetime import datetime
+import pytz
 from github import Github
 import time
 
-def fetch_citybike_data(api_url, output_path):
+def fetch_citybike_data(api_url, output_folder, output_file):
     """Fetch data from the CityBike API and save to a file."""
     try:
+        # Create folder if it doesn't exist
+        os.makedirs(output_folder, exist_ok=True)
+        
+        # Full path for the output file
+        output_path = os.path.join(output_folder, output_file)
+        
         response = requests.get(api_url)
         response.raise_for_status()
         
@@ -18,12 +25,12 @@ def fetch_citybike_data(api_url, output_path):
             f.write(response.text)
         
         print(f"Successfully downloaded data to {output_path}")
-        return True
+        return output_path
     except Exception as e:
         print(f"Error downloading data: {e}")
-        return False
+        return None
 
-def create_branch_and_pr(github_token, repo_name, file_path):
+def create_branch_and_pr(github_token, repo_name, file_path, folder_path):
     """Create a new branch, commit changes, and create a PR with auto-merge enabled."""
     try:
         # Initialize Github client
@@ -33,8 +40,9 @@ def create_branch_and_pr(github_token, repo_name, file_path):
         # Get default branch (usually 'main')
         default_branch = repo.default_branch
         
-        # Create a new branch name based on the current date/time
-        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Create a new branch name based on the current date/time in NY timezone
+        ny_tz = pytz.timezone('America/New_York')
+        current_time = datetime.now(ny_tz).strftime("%Y%m%d_%H%M%S")
         new_branch_name = f"data-update-{current_time}"
         
         # Get the reference to the default branch
@@ -49,12 +57,28 @@ def create_branch_and_pr(github_token, repo_name, file_path):
         with open(file_path, 'r', encoding='utf-8') as file:
             content = file.read()
         
-        # Get the file name from the path
+        # Get the folder name and file name from the paths
+        repo_folder_path = os.path.basename(folder_path)
         file_name = os.path.basename(file_path)
+        repo_file_path = f"{repo_folder_path}/{file_name}"
+        
+        # Check if folder exists in repo
+        try:
+            repo.get_contents(repo_folder_path, ref=new_branch_name)
+            print(f"Folder {repo_folder_path} exists")
+        except Exception:
+            # Create an empty file to ensure folder exists
+            repo.create_file(
+                f"{repo_folder_path}/.gitkeep", 
+                f"Create folder {repo_folder_path}", 
+                "", 
+                branch=new_branch_name
+            )
+            print(f"Created folder {repo_folder_path}")
         
         # Check if file exists in repo to decide between create or update
         try:
-            contents = repo.get_contents(file_name, ref=new_branch_name)
+            contents = repo.get_contents(repo_file_path, ref=new_branch_name)
             repo.update_file(
                 contents.path, 
                 f"Update {file_name} - {current_time}", 
@@ -62,21 +86,21 @@ def create_branch_and_pr(github_token, repo_name, file_path):
                 contents.sha, 
                 branch=new_branch_name
             )
-            print(f"Updated file {file_name} in branch {new_branch_name}")
+            print(f"Updated file {repo_file_path} in branch {new_branch_name}")
         except Exception:
             # File doesn't exist, create it
             repo.create_file(
-                file_name, 
+                repo_file_path, 
                 f"Add {file_name} - {current_time}", 
                 content, 
                 branch=new_branch_name
             )
-            print(f"Created new file {file_name} in branch {new_branch_name}")
+            print(f"Created new file {repo_file_path} in branch {new_branch_name}")
         
         # Create pull request
         pr = repo.create_pull(
-            title=f"Update CityBike Data - {current_time}",
-            body="Automatically generated PR with updated CityBike data.",
+            title=f"Update CitiBike Data - {current_time}",
+            body=f"Automatically generated PR with updated CitiBike data for {repo_folder_path}/{file_name}.",
             head=new_branch_name,
             base=default_branch
         )
@@ -123,15 +147,28 @@ def main():
         sys.exit(1)
     
     repo_name = "AdityaSreevatsaK/GetCityBikeData"
-    api_url = "https://citybik.es/api/v2/networks/decobike-miami-beach"
-    output_file = "miami_bike_data.json"
+    api_url = "https://gbfs.citibikenyc.com/gbfs/en/station_status.json"
+    
+    # Get current date and time in New York timezone
+    ny_tz = pytz.timezone('America/New_York')
+    now = datetime.now(ny_tz)
+    
+    # Create folder name based on date (YYYY-MM-DD)
+    folder_name = now.strftime("%Y-%m-%d")
+    
+    # Create file name with date and time (YYYY-MM-DD_HH-MM-SS)
+    file_name = f"Station-Status_{now.strftime('%Y-%m-%d_%H-%M-%S')}.json"
+    
+    # Create local folder for the day if it doesn't exist
+    local_folder_path = os.path.join(os.getcwd(), folder_name)
     
     # Fetch data
-    if not fetch_citybike_data(api_url, output_file):
+    file_path = fetch_citybike_data(api_url, local_folder_path, file_name)
+    if not file_path:
         sys.exit(1)
     
     # Create branch and PR
-    if not create_branch_and_pr(github_token, repo_name, output_file):
+    if not create_branch_and_pr(github_token, repo_name, file_path, folder_name):
         sys.exit(1)
     
     print("Process completed successfully.")
