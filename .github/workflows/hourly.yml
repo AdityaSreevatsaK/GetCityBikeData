@@ -1,5 +1,12 @@
 name: Scheduled Data Update
 
+env:
+  PAT_TOKEN: ${{ secrets.DATA_UPDATE_PAT }}
+
+permissions:
+  contents: write
+  pull-requests: write
+
 on:
   schedule:
     - cron: '0 * * * *'  # Run every hour
@@ -21,4 +28,4 @@ jobs:
       - name: Run update script
         run: python auto_update_script.py
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DATA_UPDATE_PAT }}
